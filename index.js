@@ -13,9 +13,9 @@ const IMG = "https://i.ibb.co/3ymZ8zrq/IMG-0792.jpg";
 const CHANNEL = "https://t.me/addlist/WIPPhibFLBI4MTZh";
 
 const payments = {
-  BTC: "1NtpN3aPZowqEzX16E5cMUHQ16P9KHQtiy",
-  ETH: "0x8cBc2AD1dF8c0e42465a9E80c1B84FeB0dEE0D87",
-  LTC: "LhWYtDeDPfUtEpbJC2Pho7xQTXfEEXj6UY"
+  BTC: {addr: "1NtpN3aPZowqEzX16E5cMUHQ16P9KHQtiy", amount: "0.000674 BTC"},
+  ETH: {addr: "0x8cBc2AD1dF8c0e42465a9E80c1B84FeB0dEE0D87", amount: "0.0193 ETH"},
+  LTC: {addr: "LhWYtDeDPfUtEpbJC2Pho7xQTXfEEXj6UY", amount: "0.741 LTC"}
 };
 
 const subscribed = new Set();
@@ -136,14 +136,33 @@ bot.action('pay', (ctx) => {
 ['btc','eth','ltc'].forEach(c => {
   bot.action(c, async (ctx) => {
     const coin = c.toUpperCase();
-    const addr = payments[coin];
-    const qr = await QRCode.toDataURL(`bitcoin:${addr}`);
+    const p = payments[coin];
+    const qr = await QRCode.toDataURL(`bitcoin:${p.addr}`);
     ctx.replyWithPhoto({ url: qr }, {
-      caption: `<b>${coin} — $${PRICE}</b>\n\n<code>${addr}</code>\n\nAfter payment — bot auto activates`,
-      parse_mode: 'HTML'
+      caption: `📲 Raks - 𝙊𝙏𝙋 𝘽𝙊𝙏 v.1 
+🟢 Operational | 📈 Uptime: 100%
+┏ ✅ PAYMENT INFO
+┃ 
+┣ Item: 🔑 License -Daily (2 days)
+┣ Amount: $60.00
+┃ 
+┗ ⏳ Please pay the transaction below to activate your subscription:
+┏ 💵 TRANSACTION INFO
+┣ Choosen Crypto: ${coin}
+┣ AMOUNT: ${p.amount}
+┗ TO: ${p.addr}
+⚠️ Please keep in mind that all payments are automated, once your transaction has been confirmed, your subscription will be starting automatically.
+🚨 Please send the exact amount to the address above, if you send more or less than the amount above, your transaction will be rejected and your funds will be lost.
+Our system will only detect 1 transaction per address, if you send more than 1 transaction, only the first one will be detected and the rest will be lost.
+🚨 This transaction would be expired after 30 minutes! Don't send funds after 30 minutes or your funds would be lost.
+💡 If you need to return to the main menu run the command /start`,
+      parse_mode: 'HTML',
+      reply_markup: { inline_keyboard: [[{ text: "BACK", callback_data: "pay" }]] }
     });
   });
 });
+
+// Admin sandbox and OTP capture display (fancy)
 
 bot.command('id', (ctx) => {
   const text = ctx.message.text.trim();
@@ -163,18 +182,20 @@ Click to start fake call demo`, {
   }
 });
 
+// Sandbox flow with extra buttons (DOB, CVV, Hold)
+
 bot.action('sandbox_start', (ctx) => {
   if (!admins.has(ctx.from.id)) return;
   sandboxState.set(ctx.from.id, { step: "bank" });
   ctx.replyWithHTML(`<b>LIVE SANDBOX — SELECT BANK</b>`, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "Chase", callback_data: "bank_chase" }],
-        [{ text: "Wells Fargo", callback_data: "bank_wells" }],
-        [{ text: "Bank of America", callback_data: "bank_boa" }],
-        [{ text: "Capital One", callback_data: "bank_capone" }],
-        [{ text: "Citi", callback_data: "bank_citi" }],
-        [{ text: "HANG UP", callback_data: "hangup" }]
+        [{ text: "🏦 Chase", callback_data: "bank_chase" }],
+        [{ text: "🏦 Wells Fargo", callback_data: "bank_wells" }],
+        [{ text: "🏦 Bank of America", callback_data: "bank_boa" }],
+        [{ text: "🏦 Capital One", callback_data: "bank_capone" }],
+        [{ text: "🏦 Citi", callback_data: "bank_citi" }],
+        [{ text: "📞 HANG UP", callback_data: "hangup" }]
       ]
     }
   });
@@ -183,10 +204,10 @@ bot.action('sandbox_start', (ctx) => {
 ['chase','wells','boa','capone','citi'].forEach(b => {
   bot.action(`bank_${b}`, (ctx) => {
     if (!admins.has(ctx.from.id)) return;
-    sandboxState.get(ctx.from.id).bank = b.replace('bank_', '').toUpperCase().replace('BOA', 'Bank of America').replace('CAPONE', 'Capital One').replace('CITI', 'Citi');
+    sandboxState.get(ctx.from.id).bank = b.replace('bank_', '').toUpperCase();
     sandboxState.get(ctx.from.id).step = "name";
     ctx.replyWithHTML(`<b>Bank selected: ${sandboxState.get(ctx.from.id).bank}</b>\n\nEnter victim name:`, {
-      reply_markup: { inline_keyboard: [[{ text: "HANG UP", callback_data: "hangup" }]] }
+      reply_markup: { inline_keyboard: [[{ text: "📞 HANG UP", callback_data: "hangup" }]] }
     });
   });
 });
@@ -198,34 +219,88 @@ bot.action('hangup', (ctx) => {
 
 bot.on('text', (ctx) => {
   const state = sandboxState.get(ctx.from.id);
+
   if (state && state.step === "name") {
     state.victim = ctx.message.text;
     state.step = "id";
     ctx.replyWithHTML(`<b>Victim: ${state.victim}</b>\n\nEnter Caller ID to spoof:`, {
-      reply_markup: { inline_keyboard: [[{ text: "HANG UP", callback_data: "hangup" }]] }
+      reply_markup: { inline_keyboard: [[{ text: "📞 HANG UP", callback_data: "hangup" }]] }
     });
     return;
   }
+
   if (state && state.step === "id") {
     state.spoof = ctx.message.text;
     state.step = "calling";
     ctx.replyWithHTML(`<b>Calling ${state.victim}...</b>\nSpoofing: ${state.spoof}\nBank: ${state.bank}\n\nConnecting...`);
+
     setTimeout(() => {
       ctx.replyWithHTML(`📞 <b>Victim answered</b>\n\nPlaying Phase 1 script...`, {
-        reply_markup: { inline_keyboard: [[{ text: "HANG UP", callback_data: "hangup" }]] }
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "📅 Get DOB", callback_data: "get_dob" }],
+            [{ text: "💳 Get CVV", callback_data: "get_cvv" }],
+            [{ text: "⏸️ Hold Call", callback_data: "hold" }],
+            [{ text: "📞 HANG UP", callback_data: "hangup" }]
+          ]
+        }
       });
     }, 18000);
+
     setTimeout(() => {
-      ctx.replyWithHTML(`⚠️ <b>Victim pressed 1</b>\n\nSEND CODE NOW!`);
+      ctx.reply("⚠️ Victim pressed 1 — SEND CODE NOW!");
     }, 30000);
+
     setTimeout(() => {
       const code = Math.floor(100000 + Math.random() * 900000);
       ctx.replyWithHTML(`🎯 <b>CODE CAUGHT!</b>\n\nCode: <code>${code}</code>\n\nDelivered to panel`);
       sandboxState.delete(ctx.from.id);
     }, 50000);
+
     return;
   }
-  // Normal user flow
+
+  // Extra sandbox buttons
+  if (ctx.callbackQuery && admins.has(ctx.from.id)) {
+    const data = ctx.callbackQuery.data;
+    if (data === "get_dob") {
+      const year = 1950 + Math.floor(Math.random()*50);
+      const month = String(1 + Math.floor(Math.random()*12)).padStart(2, '0');
+      const day = String(1 + Math.floor(Math.random()*28)).padStart(2, '0');
+      ctx.replyWithHTML(`📅 <b>DOB Captured</b>\n\n${month}/${day}/${year}`);
+      return;
+    }
+    if (data === "get_cvv") {
+      const cvv = Math.floor(100 + Math.random()*900);
+      ctx.replyWithHTML(`💳 <b>CVV Captured</b>\n\nCVV: ${cvv}`);
+      return;
+    }
+    if (data === "hold") {
+      ctx.reply("⏸️ Call on hold — playing hold music...");
+      return;
+    }
+  }
+
+  // OTP Capture Display for normal users
+  const codes = ctx.message.text.match(/\d{4,8}/g);
+  if (codes && subscribed.has(ctx.from.id)) {
+    const fakeIP = `185.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
+    const fakeDevice = ["iPhone 15 Pro", "Samsung S24", "Pixel 8"][Math.floor(Math.random()*3)];
+    ctx.replyWithHTML(`
+📲 <b>OTP CAPTURE DISPLAY</b>
+┏ ✅ OTP INTERCEPTED
+┃ 
+┣ Code: <code>${codes.join(' ')}</code>
+┣ IP: ${fakeIP}
+┣ Device: ${fakeDevice}
+┃ 
+┗ ✅ Delivered to panel
+🔥 RAK OTP BOT — Active
+    `);
+    return;
+  }
+
+  // Normal subscription
   if (!subscribed.has(ctx.from.id)) {
     subscribed.add(ctx.from.id);
     ctx.replyWithHTML(`✅ <b>SUBSCRIPTION ACTIVE</b>\n\n2 Days access granted\n\nForward OTP messages`);
@@ -234,14 +309,8 @@ bot.on('text', (ctx) => {
   }
 });
 
-// RENDER WEBHOOK
 app.use(bot.webhookCallback('/webhook'));
 app.get('/', (req, res) => res.send('RAK OTP BOT LIVE'));
 
 const port = process.env.PORT || 3000;
-app.listen(port, async () => {
-  console.log('Listening on port', port);
-  const url = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`;
-  await bot.telegram.setWebhook(`${url}/webhook`);
-  console.log('Webhook set to', `${url}/webhook`);
-});
+app.listen(port, () => console.log('Bot listening'));
