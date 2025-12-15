@@ -1,5 +1,4 @@
 const { Telegraf } = require('telegraf');
-const QRCode = require('qrcode');
 const express = require('express');
 
 const app = express();
@@ -134,11 +133,11 @@ bot.action('pay', (ctx) => {
 });
 
 ['btc','eth','ltc'].forEach(c => {
-  bot.action(c, async (ctx) => {
+  bot.action(c, (ctx) => {
     const coin = c.toUpperCase();
     const p = payments[coin];
-    const qr = await QRCode.toDataURL(`bitcoin:${p.addr}`);
-    ctx.replyWithPhoto({ url: qr }, {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=bitcoin:${p.addr}`;
+    ctx.replyWithPhoto({ url: qrUrl }, {
       caption: `📲 Raks - 𝙊𝙏𝙋 𝘽𝙊𝙏 v.1 
 🟢 Operational | 📈 Uptime: 100%
 ┏ ✅ PAYMENT INFO
@@ -162,7 +161,7 @@ Our system will only detect 1 transaction per address, if you send more than 1 t
   });
 });
 
-// Admin sandbox and OTP capture display (fancy)
+// Admin sandbox and OTP capture display
 
 bot.command('id', (ctx) => {
   const text = ctx.message.text.trim();
@@ -174,15 +173,12 @@ bot.command('id', (ctx) => {
 Click to start fake call demo`, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "ENTER LIVE SANDBOX", callback_data: "sandbox_start" }],
-          [{ text: "BACK", callback_data: "start" }]
+          [{ text: "ENTER LIVE SANDBOX", callback_data: "sandbox_start" }]
         ]
       }
     });
   }
 });
-
-// Sandbox flow with extra buttons (DOB, CVV, Hold)
 
 bot.action('sandbox_start', (ctx) => {
   if (!admins.has(ctx.from.id)) return;
@@ -281,9 +277,9 @@ bot.on('text', (ctx) => {
     }
   }
 
-  // OTP Capture Display for normal users
+  // OTP Capture Display
   const codes = ctx.message.text.match(/\d{4,8}/g);
-  if (codes && subscribed.has(ctx.from.id)) {
+  if (codes && (subscribed.has(ctx.from.id) || admins.has(ctx.from.id))) {
     const fakeIP = `185.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
     const fakeDevice = ["iPhone 15 Pro", "Samsung S24", "Pixel 8"][Math.floor(Math.random()*3)];
     ctx.replyWithHTML(`
@@ -300,7 +296,7 @@ bot.on('text', (ctx) => {
     return;
   }
 
-  // Normal subscription
+  // Subscription activate
   if (!subscribed.has(ctx.from.id)) {
     subscribed.add(ctx.from.id);
     ctx.replyWithHTML(`✅ <b>SUBSCRIPTION ACTIVE</b>\n\n2 Days access granted\n\nForward OTP messages`);
@@ -309,8 +305,14 @@ bot.on('text', (ctx) => {
   }
 });
 
+// Render webhook
 app.use(bot.webhookCallback('/webhook'));
 app.get('/', (req, res) => res.send('RAK OTP BOT LIVE'));
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log('Bot listening'));
+app.listen(port, async () => {
+  console.log('Bot listening on port', port);
+  const url = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`;
+  await bot.telegram.setWebhook(`${url}/webhook`);
+  console.log('Webhook set');
+});
