@@ -9,7 +9,9 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const ADMIN_KEY = "Cl339950";
 const PRICE = 60;
 const IMG = "https://i.ibb.co/3ymZ8zrq/IMG-0792.jpg";
-const CHANNEL = "https://t.me/raktf";
+const MAIN_CHANNEL = "https://t.me/raktf";
+const VOUCHES_CHANNEL = "https://t.me/rakTFvouches";
+const SUPPORT_USER = "rakrunnin";
 
 const payments = {
   BTC: {addr: "1NtpN3aPZowqEzX16E5cMUHQ16P9KHQtiy", amount: "0.000674 BTC"},
@@ -17,7 +19,7 @@ const payments = {
   LTC: {addr: "LhWYtDeDPfUtEpbJC2Pho7xQTXfEEXj6UY", amount: "0.741 LTC"}
 };
 
-const paidUsers = new Set(); // only activate after payment + message
+const paidUsers = new Set();
 const admins = new Set();
 const sandboxState = new Map();
 
@@ -29,7 +31,7 @@ bot.start((ctx) => {
 👋 Hello, ${firstName}
 🧠 Professional Social Engineering Kit
 💥 UNIQUE FEATURES
-🎯 Join our channel: ${CHANNEL}
+🎯 Join channel: ${MAIN_CHANNEL}
 💬 Click below to begin`,
     parse_mode: 'HTML',
     reply_markup: {
@@ -37,42 +39,42 @@ bot.start((ctx) => {
         [{ text: "🔓 ENTER BOT", callback_data: "enter" }],
         [{ text: "💰 PAYMENT", callback_data: "pay" }],
         [{ text: "🔥 FEATURES", callback_data: "features" }],
-        [{ text: "🗣️ VOUCHES", url: CHANNEL }],
-        [{ text: "🆘 SUPPORT", url: CHANNEL }],
-        [{ text: "📜 TERMS OF SERVICE", callback_data: "tos" }]
+        [{ text: "🗣️ VOUCHES", url: VOUCHES_CHANNEL }],
+        [{ text: "🆘 SUPPORT", url: `https://t.me/${SUPPORT_USER}` }],
+        [{ text: "📜 TOS", callback_data: "tos" }]
       ]
     }
   });
 });
 
 bot.action('features', (ctx) => {
-  ctx.replyWithHTML(`<b>🔥 RAK OTP BOT FEATURES</b>
+  ctx.replyWithHTML(`<b>🔥 RAK FEATURES</b>
 📞 Call Spoofing
-🔴 Live Call Streaming
+🔴 Live Streaming
 🎤 Custom Scripts
 🗣️ 20+ Voices
-⌨️ DTMF Detection
-⚡ Real-time OTP Capture
-🌍 International Numbers
+⌨️ DTMF
+⚡ OTP Capture
+🌍 International
 🖥️ Panel Integration
 CC CHECKER COMING SOON`);
 });
 
 bot.action('tos', (ctx) => ctx.reply(`RAK OTP BOT TOS
 All sales FINAL. NO REFUNDS.
-Wrong amount = loss.
+Wrong amount = lost.
 No reselling.
 Personal use only.
 CC CHECKER COMING SOON`));
 
 bot.action('enter', (ctx) => {
-  if (paidUsers.has(ctx.from.id) || admins.has(ctx.from.id)) {
-    ctx.reply("✅ Access active — forward OTP messages");
+  if (admins.has(ctx.from.id)) {
+    ctx.reply("✅ Admin access — sandbox ready");
     return;
   }
-  ctx.replyWithHTML(`🚫 <b>UH OH!</b>
-No subscription detected.
-Pay first to unlock.`, {
+  ctx.replyWithHTML(`🚫 <b>ACCESS DENIED</b>
+No active subscription.
+Pay to unlock.`, {
     reply_markup: {
       inline_keyboard: [
         [{ text: "💰 PAYMENT", callback_data: "pay" }],
@@ -108,82 +110,48 @@ bot.action('pay', (ctx) => {
 ┣ Item: 🔑 License -Daily (2 days)
 ┣ Amount: $60.00
 ┃ 
-┗ ⏳ Pay below to activate:
-┏ 💵 TRANSACTION INFO
+┗ ⏳ Pay below:
+┏ 💵 TRANSACTION
 ┣ Crypto: ${coin}
 ┣ Amount: ${p.amount}
 ┗ Address: ${p.addr}
-⚠️ Automated system — exact amount only
-🚨 Wrong amount = lost funds
-🚨 Expires in 30 minutes
-💡 After payment, send any message
-🗣️ Join: ${CHANNEL}`,
+⚠️ Exact amount only
+🚨 Wrong = lost funds
+🚨 Expires in 30 min
+💡 After payment, wait for confirmation
+🗣️ Join: ${MAIN_CHANNEL}`,
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "📋 COPY ADDRESS", callback_data: `copy_${c}` }],
-          [{ text: "⬅️ BACK", callback_data: "pay" }]
-        ]
-      }
+      reply_markup: { inline_keyboard: [[{ text: "📋 COPY ADDRESS", callback_data: `copy_${c}` }], [{ text: "⬅️ BACK", callback_data: "pay" }]] }
     });
   });
 });
 
 bot.action(/copy_(btc|eth|ltc)/, (ctx) => {
-  const coin = ctx.match[1].toUpperCase();
-  const addr = payments[coin].addr;
   ctx.answerCbQuery("Address copied!");
-  // Telegram auto copies on long press, but we notify
 });
 
+// Admin sandbox
 bot.command('id', (ctx) => {
-  const text = ctx.message.text.trim();
-  if (text === `/id ${ADMIN_KEY}`) {
+  if (ctx.message.text.trim() === `/id ${ADMIN_KEY}`) {
     admins.add(ctx.from.id);
     sandboxState.set(ctx.from.id, { step: "start" });
-    ctx.replyWithHTML(`
-🔥 <b>ADMIN LIVE SANDBOX</b>
-Ready for demo`, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "📞 ENTER LIVE SANDBOX", callback_data: "sandbox_start" }]
-        ]
-      }
+    ctx.replyWithHTML(`🔥 <b>ADMIN SANDBOX READY</b>`, {
+      reply_markup: { inline_keyboard: [[{ text: "📞 START CALL", callback_data: "sandbox_start" }]] }
     });
   }
 });
 
 bot.action('sandbox_start', (ctx) => {
   if (!admins.has(ctx.from.id)) return;
-  sandboxState.set(ctx.from.id, { step: "bank" });
-  ctx.replyWithHTML(`<b>📞 LIVE SANDBOX — SELECT BANK</b>`, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🏦 Chase", callback_data: "bank_chase" }],
-        [{ text: "🏦 Wells Fargo", callback_data: "bank_wells" }],
-        [{ text: "🏦 Bank of America", callback_data: "bank_boa" }],
-        [{ text: "🏦 Capital One", callback_data: "bank_capone" }],
-        [{ text: "🏦 Citi", callback_data: "bank_citi" }],
-        [{ text: "📴 HANG UP", callback_data: "hangup" }]
-      ]
-    }
-  });
-});
-
-['chase','wells','boa','capone','citi'].forEach(b => {
-  bot.action(`bank_${b}`, (ctx) => {
-    if (!admins.has(ctx.from.id)) return;
-    sandboxState.get(ctx.from.id).bank = b.toUpperCase();
-    sandboxState.get(ctx.from.id).step = "name";
-    ctx.replyWithHTML(`<b>🏦 Bank: ${b.toUpperCase()}</b>\n\nVictim name?`, {
-      reply_markup: { inline_keyboard: [[{ text: "📴 HANG UP", callback_data: "hangup" }]] }
-    });
+  sandboxState.set(ctx.from.id, { step: "name" });
+  ctx.replyWithHTML(`<b>📞 GATHER INFO</b>\n\nVictim name?`, {
+    reply_markup: { inline_keyboard: [[{ text: "📴 HANG UP", callback_data: "hangup" }]] }
   });
 });
 
 bot.action('hangup', (ctx) => {
   sandboxState.delete(ctx.from.id);
-  ctx.reply("📴 Call terminated");
+  ctx.reply("📴 Call disconnected");
 });
 
 bot.on('text', (ctx) => {
@@ -191,94 +159,181 @@ bot.on('text', (ctx) => {
 
   if (state && state.step === "name") {
     state.victim = ctx.message.text;
-    state.step = "id";
-    ctx.replyWithHTML(`<b>👤 Victim: ${state.victim}</b>\n\nSpoof Caller ID?`, {
+    state.step = "number";
+    ctx.replyWithHTML(`<b>👤 Victim: ${state.victim}</b>\n\nVictim number?`, {
       reply_markup: { inline_keyboard: [[{ text: "📴 HANG UP", callback_data: "hangup" }]] }
     });
     return;
   }
 
-  if (state && state.step === "id") {
-    state.spoof = ctx.message.text;
-    state.step = "calling";
-    ctx.replyWithHTML(`<b>📞 Calling ${state.victim}...</b>\nSpoofing: ${state.spoof}\nBank: ${state.bank}\n\nRinging...`);
+  if (state && state.step === "number") {
+    state.number = ctx.message.text;
+    state.step = "spoof";
+    ctx.replyWithHTML(`<b>📱 Number: ${state.number}</b>\n\nSpoof Caller ID #?`, {
+      reply_markup: { inline_keyboard: [[{ text: "⏭️ SKIP", callback_data: "skip_spoof" }], [{ text: "📴 HANG UP", callback_data: "hangup" }]] }
+    });
+    return;
+  }
 
-    const answerDelay = 15000 + Math.random() * 15000; // 15-30s
+  if (state && state.step === "spoof") {
+    state.spoof = ctx.message.text;
+    state.step = "last4";
+    ctx.replyWithHTML(`<b>📞 Spoof ID: ${state.spoof}</b>\n\nLast 4 digits of card?`, {
+      reply_markup: { inline_keyboard: [[{ text: "⏭️ SKIP", callback_data: "skip_last4" }], [{ text: "📴 HANG UP", callback_data: "hangup" }]] }
+    });
+    return;
+  }
+
+  if (state && state.step === "last4") {
+    state.last4 = ctx.message.text;
+    state.step = "calling";
+    ctx.replyWithHTML(`<b>💳 Last 4: ${state.last4}</b>\n\n<b>Calling ${state.victim}...</b>\nNumber: ${state.number}\nSpoof: ${state.spoof}\n\nRinging...`);
+
+    const callDelay = 40000 + Math.random() * 20000; // 40s-1min
     setTimeout(() => {
-      ctx.replyWithHTML(`📞 <b>Victim answered</b>\n\n🔴 Live streaming active\nPlaying Phase 1 script...`, {
+      ctx.replyWithHTML(`📞 <b>Victim answered</b>
+🔴 Call connected
+Playing Phase 1 script... (don't send code yet)`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "📅 Get DOB", callback_data: "get_dob" }],
-            [{ text: "💳 Get CVV", callback_data: "get_cvv" }],
-            [{ text: "🔢 Get Code", callback_data: "get_code" }],
-            [{ text: "⏸️ Hold Call", callback_data: "hold" }],
+            [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
+            [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
+            [{ text: "📱 2FA App", callback_data: "2fa" }],
+            [{ text: "💳 CC Number", callback_data: "ccnum" }],
+            [{ text: "📅 CC Expiration", callback_data: "ccexpiry" }],
+            [{ text: "🔒 ATM PIN", callback_data: "atmpin" }],
+            [{ text: "📅 DOB", callback_data: "dob" }],
             [{ text: "📴 HANG UP", callback_data: "hangup" }]
           ]
         }
       });
-    }, answerDelay);
+    }, callDelay);
 
-    const pressDelay = answerDelay + 40000 + Math.random() * 30000; // 40-70s after answer
+    const phaseDelay = callDelay + 35000 + Math.random() * 25000; // 35s-1min after answer
     setTimeout(() => {
-      ctx.reply("⚠️ Victim pressed 1 — ready for code");
-    }, pressDelay);
+      ctx.reply("⚠️ Phase 1 complete — ready for extraction");
+    }, phaseDelay);
 
     return;
   }
 
-  // Extra buttons
+  // Skip buttons
   if (ctx.callbackQuery && admins.has(ctx.from.id)) {
     const data = ctx.callbackQuery.data;
-    if (data === "get_dob") {
-      const year = 1950 + Math.floor(Math.random()*50);
-      const month = String(1 + Math.floor(Math.random()*12)).padStart(2, '0');
-      const day = String(1 + Math.floor(Math.random()*28)).padStart(2, '0');
-      ctx.replyWithHTML(`📅 <b>DOB Captured</b>\n\n${month}/${day}/${year}`);
+    if (data === "skip_spoof") {
+      state.spoof = "random";
+      state.step = "last4";
+      ctx.replyWithHTML(`<b>📞 Spoof: random</b>\n\nLast 4 digits of card?`, {
+        reply_markup: { inline_keyboard: [[{ text: "⏭️ SKIP", callback_data: "skip_last4" }], [{ text: "📴 HANG UP", callback_data: "hangup" }]] }
+      });
       return;
     }
-    if (data === "get_cvv") {
-      const cvv = Math.floor(100 + Math.random()*900);
-      ctx.replyWithHTML(`💳 <b>CVV Captured</b>\n\nCVV: ${cvv}`);
-      return;
-    }
-    if (data === "get_code") {
-      const codeDelay = 90000 + Math.random() * 60000; // 1.5-2.5 min
-      ctx.reply("🔄 Requesting code from victim...");
+    if (data === "skip_last4") {
+      state.last4 = "skipped";
+      state.step = "calling";
+      ctx.replyWithHTML(`<b>💳 Last 4: skipped</b>\n\n<b>Calling ${state.victim}...</b>\nNumber: ${state.number}\nSpoof: ${state.spoof}\n\nRinging...`);
+      // same call delay as above
+      const callDelay = 40000 + Math.random() * 20000;
       setTimeout(() => {
-        const code = Math.floor(100000 + Math.random() * 900000);
-        ctx.replyWithHTML(`🎯 <b>CODE CAUGHT!</b>\n\n<code>${code}</code>\n\nDelivered to panel`);
-      }, codeDelay);
-      return;
-    }
-    if (data === "hold") {
-      ctx.reply("⏸️ Call on hold — playing music...");
+        ctx.replyWithHTML(`📞 <b>Victim answered</b>
+🔴 Call connected
+Playing Phase 1 script... (don't send code yet)`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔢 OTP (6 digit)", callback_data: "otp6" }],
+              [{ text: "🔢 OTP (4 digit)", callback_data: "otp4" }],
+              [{ text: "📱 2FA App", callback_data: "2fa" }],
+              [{ text: "💳 CC Number", callback_data: "ccnum" }],
+              [{ text: "📅 CC Expiration", callback_data: "ccexpiry" }],
+              [{ text: "🔒 ATM PIN", callback_data: "atmpin" }],
+              [{ text: "📅 DOB", callback_data: "dob" }],
+              [{ text: "📴 HANG UP", callback_data: "hangup" }]
+            ]
+          }
+        });
+      }, callDelay);
       return;
     }
   }
 
-  // Normal user — activate only after payment (any message)
-  if (!paidUsers.has(ctx.from.id)) {
-    paidUsers.add(ctx.from.id);
-    ctx.replyWithHTML(`✅ <b>SUBSCRIPTION ACTIVE</b>\n\n2 Days access\nForward OTP messages\n\nJoin: ${CHANNEL}`);
-  } else {
-    const codes = ctx.message.text.match(/\d{4,8}/g);
-    if (codes) {
-      const fakeIP = `185.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
-      const fakeDevice = ["iPhone 15 Pro", "Samsung S24", "Pixel 8"][Math.floor(Math.random()*3)];
-      ctx.replyWithHTML(`
-📲 <b>OTP CAPTURE DISPLAY</b>
-┏ ✅ OTP INTERCEPTED
-┃
-┣ Code: <code>${codes.join(' ')}</code>
-┣ IP: ${fakeIP}
-┣ Device: ${fakeDevice}
-┃
-┗ ✅ Delivered to panel
-🔥 RAK OTP BOT — Active
-      `);
-    } else {
-      ctx.reply("✅ Processing...");
+  // Extraction buttons
+  if (ctx.callbackQuery && admins.has(ctx.from.id)) {
+    const data = ctx.callbackQuery.data;
+    const delay = 40000 + Math.random() * 20000; // 40s-1min
+
+    if (data === "otp6") {
+      ctx.reply("🔄 Requesting 6-digit OTP...");
+      setTimeout(() => {
+        const code = Math.floor(100000 + Math.random() * 900000);
+        ctx.replyWithHTML(`🎯 <b>CODE CAUGHT!</b>\n\n6-digit OTP: <code>${code}</code>\n\nDelivered to panel`);
+      }, delay);
+      return;
     }
+
+    if (data === "otp4") {
+      ctx.reply("🔄 Requesting 4-digit OTP...");
+      setTimeout(() => {
+        const code = Math.floor(1000 + Math.random() * 9000);
+        ctx.replyWithHTML(`🎯 <b>CODE CAUGHT!</b>\n\n4-digit OTP: <code>${code}</code>\n\nDelivered to panel`);
+      }, delay);
+      return;
+    }
+
+    if (data === "2fa") {
+      ctx.reply("🔄 Accessing 2FA app...");
+      setTimeout(() => {
+        const code = Math.floor(100000 + Math.random() * 900000);
+        ctx.replyWithHTML(`📱 <b>2FA App Code Captured</b>\n\n<code>${code}</code>`);
+      }, delay);
+      return;
+    }
+
+    if (data === "ccnum") {
+      ctx.reply("🔄 Extracting CC number...");
+      setTimeout(() => {
+        const cc = `4${Math.floor(Math.random()*900000000000000) + 100000000000000}`.match(/.{4}/g).join(' ');
+        ctx.replyWithHTML(`💳 <b>CC Number Captured</b>\n\n<code>${cc}</code>`);
+      }, delay);
+      return;
+    }
+
+    if (data === "ccexpiry") {
+      ctx.reply("🔄 Getting expiration...");
+      setTimeout(() => {
+        const month = String(1 + Math.floor(Math.random()*12)).padStart(2, '0');
+        const year = 25 + Math.floor(Math.random()*10);
+        ctx.replyWithHTML(`📅 <b>CC Expiration Captured</b>\n\n${month}/${year}`);
+      }, delay);
+      return;
+    }
+
+    if (data === "atmpin") {
+      ctx.reply("🔄 Retrieving ATM PIN...");
+      setTimeout(() => {
+        const pin = Math.floor(1000 + Math.random()*9000);
+        ctx.replyWithHTML(`🔒 <b>ATM PIN Captured</b>\n\n<code>${pin}</code>`);
+      }, delay);
+      return;
+    }
+
+    if (data === "dob") {
+      ctx.reply("🔄 Getting DOB...");
+      setTimeout(() => {
+        const year = 1950 + Math.floor(Math.random()*50);
+        const month = String(1 + Math.floor(Math.random()*12)).padStart(2, '0');
+        const day = String(1 + Math.floor(Math.random()*28)).padStart(2, '0');
+        ctx.replyWithHTML(`📅 <b>DOB Captured</b>\n\n${month}/${day}/${year}`);
+      }, delay);
+      return;
+    }
+  }
+
+  // Normal users — processing feel
+  if (paidUsers.has(ctx.from.id)) {
+    ctx.reply("⏳ Payment still processing... This can take 5-15 minutes. Do not send again.");
+  } else {
+    paidUsers.add(ctx.from.id);
+    ctx.reply("⏳ Transaction detected. Processing payment... Please wait (5-15 min).");
   }
 });
 
